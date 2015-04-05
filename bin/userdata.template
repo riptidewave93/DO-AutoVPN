@@ -1,0 +1,14 @@
+#!/bin/bash
+mkdir /var/log/DO-AutoVPN
+exec > >(tee /var/log/DO-AutoVPN/userdata.log)
+exec 2>&1
+echo "Installing required packages"
+apt-get -y update
+apt-get install -yq git
+echo "Cloning Repo"
+cd /tmp
+git clone https://github.com/riptidewave93/DO-AutoVPN-Server.git
+cd ./DO-AutoVPN-Server/bin
+echo "Starting Setup..."
+chmod +x ./* && ./setup.sh {PORT} {PASS} {DO_TOKEN}
+echo "Init Script Finished!"
