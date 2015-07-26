@@ -7,6 +7,9 @@
 
 import digitalocean, random, string, sys, time, pycurl
 
+# Change this to modify the server timeout before destruction (in minutes), 0 = disabled
+DESTROY_TIMEOUT = 15
+
 # Change this to your API key to remove input prompt
 DOKey = None
 
@@ -20,16 +23,17 @@ while DOKey is None:
 
 # Generate random values used later
 PullPort = random.randint(1000,9999) # Port we will use later to Download the client config
-PullPass = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(20)) # Pass used to auth for client config
-Hostname = 'DO-AutoVPN' + str(random.randint(000,999))
+PullUser = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(32)) # User used to auth for client config
+PullPass = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(64)) # Pass used to auth for client config
+Hostname = 'DO-AutoVPN' + str(random.randint(0000,9999))
 
 # Load Userdata
 with open ("./userdata.template", "r") as myfile:
 	UserScript = myfile.read()
-	
+
 # Replace placeholders with their actual value
-UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{PASS}', PullPass).replace('{DO_TOKEN}', DOKey)
-	
+UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{USER}', PullUser).replace('{PASS}', PullPass).replace('{DO_TOKEN}', DOKey).replace('{TIMEOUT}', DESTROY_TIMEOUT)
+
 # Try to create VM
 droplet = digitalocean.Droplet(token=DOKey,
 	name=Hostname,
@@ -37,8 +41,9 @@ droplet = digitalocean.Droplet(token=DOKey,
 	image='ubuntu-14-04-x64',
 	size_slug='512mb',
 	backups=False,
+	ipv6=True,
 	user_data=UserScript)
-	
+
 try:
 	droplet.create()
 except Exception as e:
@@ -69,17 +74,15 @@ while PullLoop:
 			c = pycurl.Curl()
 			c.setopt(c.URL, 'https://' + InstanceIP + ':' + str(PullPort) + '/client.ovpn')
 			c.setopt(c.WRITEDATA, f)
-			c.setopt(pycurl.USERPWD, 'admin:' + PullPass)
+			c.setopt(pycurl.USERPWD, PullUser + ':' + PullPass)
 			c.setopt(pycurl.CONNECTTIMEOUT, 60)
 			c.setopt(c.SSL_VERIFYPEER, 0) # Allow self signed cert!
 			c.perform()
 			c.close()
 	except Exception as e:
-		print('An error occurred: ' + str(e))
+		print('.',end="",flush=True)
 		time.sleep(10)
 		continue
 	else:
 		PullLoop = False
-print('File Downloaded! Script Complete. Use the downloaded client.ovpn to connect to your VPN. If you dont within 15 minutes, the Droplet will destroy itself.')
-		
-	
+print('File Downloaded! Script Complete. Use the downloaded client.ovpn to connect to your VPN. If you dont within ' + str(DESTROY_TIMEOUT) + ' minutes, the Droplet will destroy itself.')
