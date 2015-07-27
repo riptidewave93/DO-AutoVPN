@@ -10,5 +10,5 @@ cd /tmp
 git clone https://github.com/riptidewave93/DO-AutoVPN-Server.git
 cd ./DO-AutoVPN-Server/bin
 echo "Starting Setup..."
-chmod +x ./* && ./setup.sh {PORT} {USER} {PASS} {DO_TOKEN} {TIMEOUT}
+chmod +x ./* && ./setup.sh {PORT} {USER} {PASS} {TIMEOUT} {DO_TOKEN}
 echo "Init Script Finished!"
