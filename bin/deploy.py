@@ -32,7 +32,7 @@ with open ("./userdata.template", "r") as myfile:
 	UserScript = myfile.read()
 
 # Replace placeholders with their actual value
-UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{USER}', PullUser).replace('{PASS}', PullPass).replace('{DO_TOKEN}', DOKey).replace('{TIMEOUT}', DESTROY_TIMEOUT)
+UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{USER}', PullUser).replace('{PASS}', PullPass).replace('{DO_TOKEN}', DOKey).replace('{TIMEOUT}', str(DESTROY_TIMEOUT))
 
 # Try to create VM
 droplet = digitalocean.Droplet(token=DOKey,
