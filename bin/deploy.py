@@ -37,7 +37,7 @@ UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{USER}', PullU
 # Try to create VM
 droplet = digitalocean.Droplet(token=DOKey,
 	name=Hostname,
-	region='nyc3',
+	region='sfo1',
 	image='ubuntu-14-04-x64',
 	size_slug='512mb',
 	backups=False,
