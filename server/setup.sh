@@ -60,7 +60,12 @@ chmod 600 $OVPN_DIR/*-key.pem
 echo net.ipv4.ip_forward=1 >> /etc/sysctl.conf
 sysctl -p
 
-# Save iptables in case of reboots
+# Configure and save iptables in case of reboots
+iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+iptables -A INPUT -p tcp --dport $HTTPS_PORT -j ACCEPT
+iptables -P INPUT DROP
 iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
 iptables-save > /etc/iptables/rules.v4
 
@@ -130,10 +135,15 @@ mv ./remove-instance.sh /usr/bin/remove-instance.sh && chmod +x /usr/bin/remove-
 
 # Configure OpenVPN and start it
 sed -ie '0,/#AUTOSTART/ s/#AUTOSTART/AUTOSTART/' /etc/default/openvpn
+systemctl daemon-reload
 service openvpn restart
 
 # Serve up the HTTPS server so the config can be pulled
 ./handoff-server.py $HTTPS_PORT $AUTH_USER:$AUTH_PASS
+
+# If we make it here, we are done. remove port from firewall and save
+iptables -D INPUT -p tcp --dport $HTTPS_PORT -j ACCEPT
+iptables-save > /etc/iptables/rules.v4
 
 # Finish
 echo "setup.sh Complete!"
