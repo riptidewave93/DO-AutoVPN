@@ -29,7 +29,7 @@ iptables-persistent iptables-persistent/autosave_v6 boolean true
 EOF
 
 # Install required packages
-apt-get install -qy python python-openssl openvpn curl iptables-persistent
+apt-get install -qy fail2ban python python-openssl openvpn curl iptables-persistent
 
 # Setup key for Python Client
 openssl req -new -x509 -keyout py-server.pem -out py-server.pem -days 365 -subj /CN=$SERVER_IP/ -nodes
