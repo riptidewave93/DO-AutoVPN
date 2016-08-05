@@ -1,7 +1,7 @@
-#!/usr/bin/env python3.4
+#!/usr/bin/env python3
 #
 # DO-AutoVPN Deployment Script Example
-# Created By: Chris Blake (riptidewave93)
+# By Chris Blake (chrisrblake93@gmail.com)
 # https://github.com/riptidewave93/DO-AutoVPN
 #
 
@@ -13,6 +13,9 @@ DESTROY_TIMEOUT = 15
 # Change this to your API key to remove input prompt
 DOKey = None
 
+# Change this to edit the starting name of the Droplets hostname, ex: Do-AutoVPN3244
+HostPrefix = "DO-AutoVPN"
+
 # Start main code
 while DOKey is None:
 	DOKey = input("Please enter a Ditial Ocean API key that has read and write access: ")
@@ -22,10 +25,10 @@ while DOKey is None:
 		DOKey = DOKey.replace(' ','').replace('\n','') # Remove any possible spaces or breaks from the token
 
 # Generate random values used later
-PullPort = random.randint(1000,9999) # Port we will use later to Download the client config
+PullPort = random.randint(1000,25565) # Port we will use later to Download the client config
 PullUser = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(32)) # User used to auth for client config
 PullPass = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(64)) # Pass used to auth for client config
-Hostname = 'DO-AutoVPN' + str(random.randint(0000,9999))
+Hostname = HostPrefix + str(random.randint(0000,9999))
 
 # Load Userdata
 with open ("./userdata.template", "r") as myfile:
@@ -37,8 +40,8 @@ UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{USER}', PullU
 # Try to create VM
 droplet = digitalocean.Droplet(token=DOKey,
 	name=Hostname,
-	region='sfo1',
-	image='ubuntu-14-04-x64',
+	region='sfo2',
+	image='debian-8-x64',
 	size_slug='512mb',
 	backups=False,
 	ipv6=True,
