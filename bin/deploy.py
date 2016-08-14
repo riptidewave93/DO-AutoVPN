@@ -73,7 +73,7 @@ print('Attempting to pull the client OpenVPN configuration file')
 PullLoop = True
 while PullLoop:
 	try:
-		with open('client.ovpn', 'wb') as f:
+		with open('do-vpn.ovpn', 'wb') as f:
 			c = pycurl.Curl()
 			c.setopt(c.URL, 'https://' + InstanceIP + ':' + str(PullPort) + '/client.ovpn')
 			c.setopt(c.WRITEDATA, f)
