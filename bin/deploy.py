@@ -17,7 +17,7 @@ DOKey = None
 DORegion = None
 
 # Change this to edit the starting name of the Droplets hostname, ex: Do-AutoVPN3244
-HostPrefix = "DO-AutoVPN"
+HostPrefix = "VPN"
 
 ###################
 # Start main code #
@@ -65,7 +65,7 @@ while DORegion is None:
 PullPort = random.randint(1000,25565) # Port we will use later to Download the client config
 PullUser = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(32)) # User used to auth for client config
 PullPass = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(64)) # Pass used to auth for client config
-Hostname = HostPrefix + str(random.randint(0000,9999))
+Hostname = HostPrefix + '-' + DORegion.upper() + '-' + str(random.randint(0000,9999))
 
 # Load Userdata
 with open ("./userdata.template", "r") as myfile:
@@ -111,7 +111,7 @@ print('Attempting to pull the client OpenVPN configuration file', end="")
 PullLoop = True
 while PullLoop:
 	try:
-		with open(Hostname + '-' + DORegion.upper() + '.ovpn', 'wb') as f:
+		with open(Hostname + '.ovpn', 'wb') as f:
 			c = pycurl.Curl()
 			c.setopt(c.URL, 'https://' + InstanceIP + ':' + str(PullPort) + '/client.ovpn')
 			c.setopt(c.WRITEDATA, f)
@@ -126,5 +126,5 @@ while PullLoop:
 		continue
 	else:
 		PullLoop = False
-print('\nFile Downloaded! Script Complete. Use the downloaded ' + Hostname + '-' + DORegion + '.ovpn to connect to your VPN. If you don\'t within ' + str(DESTROY_TIMEOUT) + ' minutes, the Droplet will destroy itself.')
+print('\nFile Downloaded! Script Complete. Use the downloaded ' + Hostname + '.ovpn to connect to your VPN. If you don\'t within ' + str(DESTROY_TIMEOUT) + ' minutes, the Droplet will destroy itself.')
 sys.exit(0)
