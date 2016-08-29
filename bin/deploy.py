@@ -13,16 +13,53 @@ DESTROY_TIMEOUT = 15
 # Change this to your API key to remove input prompt
 DOKey = None
 
+# Change this to the default region you want to use, or leave empty for prompt
+DORegion = None
+
 # Change this to edit the starting name of the Droplets hostname, ex: Do-AutoVPN3244
 HostPrefix = "DO-AutoVPN"
 
-# Start main code
+###################
+# Start main code #
+###################
+
+# Make sure we have an API key
 while DOKey is None:
 	DOKey = input("Please enter a Ditial Ocean API key that has read and write access: ")
 	if len(DOKey) < 60:
 		print('Invalid entry, please try again.')
+		DOKey = None
 	else:
 		DOKey = DOKey.replace(' ','').replace('\n','') # Remove any possible spaces or breaks from the token
+
+# At this point we should have an API key, let's test it to make sure it works
+try:
+	manager = digitalocean.Manager(token=DOKey)
+except Exception as e:
+	print("Error connecting to DigitalOcean! Error was: " + str(e))
+
+# Make sure we have a region
+while DORegion is None:
+	regions = manager.get_all_regions()
+	OurRegions=""
+	for region in regions:
+		OurRegions += '\n' + region.slug
+	DORegion = input("Please enter a DigitalOcean region you would like to use. Available options are:" + OurRegions + "\n\nPlease enter a region: ")
+	if len(DORegion) < 4:
+		print('Invalid entry, please try again.\n')
+		DORegion = None
+	else:
+		# Remove any possible spaces or breaks from the input
+		DORegion = DORegion.replace(' ','').replace('\n','')
+		# Verify the input region exists
+		RegFound=0
+		for region in regions:
+			if DORegion.lower() == region.slug:
+				RegFound=1
+				break
+		if RegFound == 0:
+			print('Invalid region entered, please try again!')
+			DORegion = None
 
 # Generate random values used later
 PullPort = random.randint(1000,25565) # Port we will use later to Download the client config
@@ -40,7 +77,7 @@ UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{USER}', PullU
 # Try to create VM
 droplet = digitalocean.Droplet(token=DOKey,
 	name=Hostname,
-	region='sfo2',
+	region=DORegion,
 	image='debian-8-x64',
 	size_slug='512mb',
 	backups=False,
@@ -51,7 +88,8 @@ try:
 	droplet.create()
 except Exception as e:
 	print('Deploy Error: ' + str(e))
-	sys.exit()
+	droplet.destroy()
+	sys.exit(1)
 else:
 	print('VM Deployment Requested... waiting for build to finish.')
 	# Wait for the instance to spinup
@@ -69,11 +107,11 @@ else:
 		time.sleep(2) # Let's not knock all day on the API
 print('Sleeping to give cloudinit some time')
 time.sleep(60)
-print('Attempting to pull the client OpenVPN configuration file')
+print('Attempting to pull the client OpenVPN configuration file', end="")
 PullLoop = True
 while PullLoop:
 	try:
-		with open('do-vpn.ovpn', 'wb') as f:
+		with open(Hostname + '-' + DORegion.upper() + '.ovpn', 'wb') as f:
 			c = pycurl.Curl()
 			c.setopt(c.URL, 'https://' + InstanceIP + ':' + str(PullPort) + '/client.ovpn')
 			c.setopt(c.WRITEDATA, f)
@@ -88,4 +126,5 @@ while PullLoop:
 		continue
 	else:
 		PullLoop = False
-print('File Downloaded! Script Complete. Use the downloaded client.ovpn to connect to your VPN. If you dont within ' + str(DESTROY_TIMEOUT) + ' minutes, the Droplet will destroy itself.')
+print('\nFile Downloaded! Script Complete. Use the downloaded ' + Hostname + '-' + DORegion + '.ovpn to connect to your VPN. If you don\'t within ' + str(DESTROY_TIMEOUT) + ' minutes, the Droplet will destroy itself.')
+sys.exit(0)
