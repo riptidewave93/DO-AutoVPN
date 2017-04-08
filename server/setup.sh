@@ -63,15 +63,15 @@ sysctl -p
 # Configure and save iptables in case of reboots
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A INPUT -p tcp --dport 22 -j ACCEPT
-iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+iptables -A INPUT -p udp --dport 53 -j ACCEPT
 iptables -A INPUT -p tcp --dport $HTTPS_PORT -j ACCEPT
 iptables -P INPUT DROP
-iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -s 192.168.254.0/24 -o eth0 -j MASQUERADE
 iptables-save > /etc/iptables/rules.v4
 
 # Write configuration files for client and server
->$OVPN_DIR/server-443.conf cat <<EOF
-server      10.8.0.0 255.255.255.0
+>$OVPN_DIR/server-53.conf cat <<EOF
+server      192.168.254.0 255.255.255.0
 verb        3
 duplicate-cn
 key         server-key.pem
@@ -81,7 +81,8 @@ dh          dh.pem
 keepalive   10 120
 persist-key yes
 persist-tun yes
-comp-lzo    yes
+sndbuf      0
+rcvbuf      0
 push        "dhcp-option DNS 8.8.8.8"
 push        "dhcp-option DNS 8.8.4.4"
 
@@ -101,10 +102,10 @@ push        "route 0.0.0.0 0.0.0.0"
 user        nobody
 group       nogroup
 
-proto       tcp
-port        443
-dev         tun443
-status      openvpn-status-443.log
+proto       udp
+port        53
+dev         tun53
+status      openvpn-status-53.log
 EOF
 
 >$OVPN_DIR/client.ovpn cat <<EOF
@@ -112,8 +113,9 @@ client
 nobind
 dev tun
 redirect-gateway def1 bypass-dhcp
-remote $SERVER_IP 443 tcp
-comp-lzo yes
+remote $SERVER_IP 53 udp
+sndbuf 0
+rcvbuf 0
 
 <key>
 $(cat $OVPN_DIR/client-key.pem)
