@@ -17,6 +17,7 @@ AUTH_PASS=$3
 REMOVE_TIMEOUT=$4
 DO_APIKEY=$5
 SERVER_IP=$(curl -s http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address)
+ANCHOR_IP=$(curl -s http://169.254.169.254/metadata/v1/interfaces/public/0/anchor_ipv4/address)
 OVPN_DIR="/etc/openvpn"
 
 # Save our key to a file for later usage (to remove self)
@@ -29,29 +30,33 @@ iptables-persistent iptables-persistent/autosave_v6 boolean true
 EOF
 
 # Install required packages
-apt-get install -qy fail2ban python python-openssl openvpn curl iptables-persistent
+apt install -qy haveged fail2ban python python-openssl openvpn iptables-persistent jq
 
-# Setup key for Python Client
-openssl req -new -x509 -keyout py-server.pem -out py-server.pem -days 365 -subj /CN=$SERVER_IP/ -nodes
+# Move, Setup, and Run our FLIP tool
+cp ./flip-the-flip.sh /opt/flip-the-flip.sh
+crontab -l > /tmp/crontmp
+echo -e "0 0\t* * *\t/opt/flip-the-flip.sh > /dev/null 2>&1" >> /tmp/crontmp
+crontab /tmp/crontmp && rm /tmp/crontmp
+/opt/flip-the-flip.sh
 
 # Certificate Authority
->$OVPN_DIR/ca-key.pem      openssl genrsa 2048
+>$OVPN_DIR/ca-key.pem      openssl genrsa 4096
 >$OVPN_DIR/ca-csr.pem      openssl req -new -key $OVPN_DIR/ca-key.pem -subj /CN=OpenVPN-CA/
 >$OVPN_DIR/ca-cert.pem     openssl x509 -req -in $OVPN_DIR/ca-csr.pem -signkey $OVPN_DIR/ca-key.pem -days 365
 >$OVPN_DIR/ca-cert.srl     echo 01
 
 # Server Key & Certificate
->$OVPN_DIR/server-key.pem  openssl genrsa 2048
+>$OVPN_DIR/server-key.pem  openssl genrsa 4096
 >$OVPN_DIR/server-csr.pem  openssl req -new -key $OVPN_DIR/server-key.pem -subj /CN=OpenVPN-Server/
 >$OVPN_DIR/server-cert.pem openssl x509 -req -in $OVPN_DIR/server-csr.pem -CA $OVPN_DIR/ca-cert.pem -CAkey $OVPN_DIR/ca-key.pem -days 365
 
 # Client Key & Certificate
->$OVPN_DIR/client-key.pem  openssl genrsa 2048
+>$OVPN_DIR/client-key.pem  openssl genrsa 4096
 >$OVPN_DIR/client-csr.pem  openssl req -new -key $OVPN_DIR/client-key.pem -subj /CN=OpenVPN-Client/
 >$OVPN_DIR/client-cert.pem openssl x509 -req -in $OVPN_DIR/client-csr.pem -CA $OVPN_DIR/ca-cert.pem -CAkey $OVPN_DIR/ca-key.pem -days 365
 
 # Diffie hellman parameters
->$OVPN_DIR/dh.pem     openssl dhparam 2048
+>$OVPN_DIR/dh.pem     openssl dhparam -dsaparam 4096
 
 # Set Permissions
 chmod 600 $OVPN_DIR/*-key.pem
@@ -64,14 +69,15 @@ sysctl -p
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A INPUT -p tcp --dport 22 -j ACCEPT
 iptables -A INPUT -p udp --dport 53 -j ACCEPT
+iptables -A INPUT -p icmp -j ACCEPT
 iptables -A INPUT -p tcp --dport $HTTPS_PORT -j ACCEPT
 iptables -P INPUT DROP
-iptables -t nat -A POSTROUTING -s 192.168.254.0/24 -o eth0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -s 192.168.254.0/27 -j SNAT --to-source $ANCHOR_IP
 iptables-save > /etc/iptables/rules.v4
 
 # Write configuration files for client and server
 >$OVPN_DIR/server-53.conf cat <<EOF
-server      192.168.254.0 255.255.255.0
+server      192.168.254.0 255.255.255.224
 verb        3
 duplicate-cn
 key         server-key.pem
@@ -79,12 +85,12 @@ ca          ca-cert.pem
 cert        server-cert.pem
 dh          dh.pem
 keepalive   10 120
-persist-key yes
-persist-tun yes
+persist-key
+persist-tun
 sndbuf      0
 rcvbuf      0
-push        "dhcp-option DNS 8.8.8.8"
-push        "dhcp-option DNS 8.8.4.4"
+
+cipher AES-256-CBC
 
 # Enable management so we can watch local connected clients
 # management localhost 7505
@@ -95,6 +101,8 @@ push        "dhcp-option DNS 8.8.4.4"
 #
 # push        "redirect-gateway def1 bypass-dhcp"
 
+push        "dhcp-option DNS 8.8.8.8"
+push        "dhcp-option DNS 8.8.4.4"
 push        "redirect-gateway bypass-dhcp"
 push        "route-metric 512"
 push        "route 0.0.0.0 0.0.0.0"
@@ -116,6 +124,8 @@ redirect-gateway def1 bypass-dhcp
 remote $SERVER_IP 53 udp
 sndbuf 0
 rcvbuf 0
+
+cipher AES-256-CBC
 
 <key>
 $(cat $OVPN_DIR/client-key.pem)
@@ -139,6 +149,9 @@ mv ./remove-instance.sh /usr/bin/remove-instance.sh && chmod +x /usr/bin/remove-
 sed -ie '0,/#AUTOSTART/ s/#AUTOSTART/AUTOSTART/' /etc/default/openvpn
 systemctl daemon-reload
 service openvpn restart
+
+# Setup key for Python HTTPS server
+openssl req -new -x509 -keyout /tmp/py-server.pem -out /tmp/py-server.pem -days 365 -subj /CN=$SERVER_IP/ -nodes
 
 # Serve up the HTTPS server so the config can be pulled
 ./handoff-server.py $HTTPS_PORT $AUTH_USER:$AUTH_PASS

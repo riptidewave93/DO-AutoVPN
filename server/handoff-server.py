@@ -18,7 +18,7 @@ class SecureHTTPServer(HTTPServer):
 		ctx = SSL.Context(SSL.SSLv23_METHOD)
 		#server.pem's location (containing the server private key and
 		#the server certificate).
-		fpem = './py-server.pem'
+		fpem = '/tmp/py-server.pem'
 		ctx.use_privatekey_file (fpem)
 		ctx.use_certificate_file(fpem)
 		self.socket = SSL.Connection(ctx, socket.socket(self.address_family, self.socket_type))

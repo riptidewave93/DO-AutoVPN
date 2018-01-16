@@ -3,7 +3,8 @@
 # Digital Ocean instance remove script
 # By Chris Blake (chrisrblake93@gmail.com)
 #
-exec > >(tee tee /var/log/DO-AutoVPN/terminate.log)
+mkdir -p /var/log/DO-AutoVPN
+exec > >(tee /var/log/DO-AutoVPN/terminate.log)
 exec 2>&1
 
 DO_TOKEN=$(cat /root/.do_apikey)
@@ -35,8 +36,25 @@ while true; do
 	fi
 	if [ $connectcount -gt $REMOVE_TIMEOUT ]
 	then
+		# Get our current FLIP
+		FLIP=""
+		if [ "`curl -s http://169.254.169.254/metadata/v1/floating_ip/ipv4/active`" == "true" ]; then
+			FLIP=`curl -s http://169.254.169.254/metadata/v1/floating_ip/ipv4/ip_address`
+		fi
+
 		echo 'Threshold met, terminating self...'
-		curl -X DELETE -H 'Content-Type: application/json' -H "Authorization: Bearer $DO_TOKEN" "https://api.digitalocean.com/v2/droplets/$INSTANCE_ID"
+
+		# If we had a FLIP, nuke it
+		if [ "${FLIP}" != "" ]; then
+			# release
+			curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $DO_TOKEN" -d '{"type":"unassign"}' "https://api.digitalocean.com/v2/floating_ips/$FLIP/actions"
+			sleep 3
+			# delete
+			curl -s -X DELETE -H "Content-Type: application/json" -H "Authorization: Bearer $DO_TOKEN" "https://api.digitalocean.com/v2/floating_ips/$FLIP"
+			sleep 6
+		fi
+
+		curl -s -X DELETE -H 'Content-Type: application/json' -H "Authorization: Bearer $DO_TOKEN" "https://api.digitalocean.com/v2/droplets/$INSTANCE_ID"
 		sleep 60 # We will die, otherwise we wait and loop back around
 	fi
 done

@@ -11,10 +11,13 @@ import digitalocean, random, string, sys, time, pycurl
 DESTROY_TIMEOUT = 15
 
 # Change this to your API key to remove input prompt
-DOKey = None
+DOKey = ""
 
 # Change this to the default region you want to use, or leave empty for prompt
 DORegion = None
+
+# Change this to a list of your SSH Key ID(s) on DO that you want to apply
+SSHKeys = []
 
 # Change this to edit the starting name of the Droplets hostname, ex: Do-AutoVPN3244
 HostPrefix = "VPN"
@@ -22,6 +25,16 @@ HostPrefix = "VPN"
 ###################
 # Start main code #
 ###################
+
+UserScript = """#!/bin/bash
+mkdir /var/log/DO-AutoVPN
+exec > >(tee /var/log/DO-AutoVPN/userdata.log)
+exec 2>&1
+apt -y update && apt install -yq git curl
+git clone https://github.com/riptidewave93/DO-AutoVPN.git /tmp/DO-AutoVPN
+cd /tmp/DO-AutoVPN/server
+chmod +x ./* && ./setup.sh {PORT} {USER} {PASS} {TIMEOUT} {DO_TOKEN}
+exit 0"""
 
 # Make sure we have an API key
 while DOKey is None:
@@ -67,10 +80,6 @@ PullUser = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.
 PullPass = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(64)) # Pass used to auth for client config
 Hostname = HostPrefix + '-' + DORegion.upper() + '-' + str(random.randint(0000,9999))
 
-# Load Userdata
-with open ("./userdata.template", "r") as myfile:
-	UserScript = myfile.read()
-
 # Replace placeholders with their actual value
 UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{USER}', PullUser).replace('{PASS}', PullPass).replace('{DO_TOKEN}', DOKey).replace('{TIMEOUT}', str(DESTROY_TIMEOUT))
 
@@ -78,10 +87,12 @@ UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{USER}', PullU
 droplet = digitalocean.Droplet(token=DOKey,
 	name=Hostname,
 	region=DORegion,
-	image='debian-8-x64',
-	size_slug='512mb',
+	ssh_keys=SSHKeys,
+	image='debian-9-x64',
+	size_slug='s-1vcpu-1gb',
 	backups=False,
-	ipv6=True,
+	ipv6=False,
+	monitoring=True,
 	user_data=UserScript)
 
 try:
@@ -126,5 +137,7 @@ while PullLoop:
 		continue
 	else:
 		PullLoop = False
-print('\nFile Downloaded! Script Complete. Use the downloaded ' + Hostname + '.ovpn to connect to your VPN. If you don\'t within ' + str(DESTROY_TIMEOUT) + ' minutes, the Droplet will destroy itself.')
+print('\nFile Downloaded! Script Complete. Use the downloaded ' + Hostname + '.ovpn to connect to your VPN.')
+if DESTROY_TIMEOUT != 0:
+	print('\nIf you don\'t connect within ' + str(DESTROY_TIMEOUT) + ' minutes, the Droplet will destroy itself.')
 sys.exit(0)
