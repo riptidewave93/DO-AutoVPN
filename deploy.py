@@ -11,7 +11,7 @@ import digitalocean, random, string, sys, time, pycurl
 DESTROY_TIMEOUT = 15
 
 # Change this to your API key to remove input prompt
-DOKey = ""
+DOKey = None
 
 # Change this to the default region you want to use, or leave empty for prompt
 DORegion = None
