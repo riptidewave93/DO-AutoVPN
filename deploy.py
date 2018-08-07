@@ -84,7 +84,7 @@ PullPass = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.
 Hostname = HostPrefix + '-' + DORegion.upper() + '-' + str(random.randint(0000,9999))
 
 # Replace placeholders with their actual value
-UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{USER}', PullUser).replace('{PASS}', PullPass).replace('{DO_TOKEN}', DOKey).replace('{TIMEOUT}', str(DESTROY_TIMEOUT))
+UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{USER}', PullUser).replace('{PASS}', PullPass).replace('{DO_TOKEN}', DOKey).replace('{TIMEOUT}', str(DESTROY_TIMEOUT).replace('{VPNType}', str(VPNType))
 
 # Try to create VM
 droplet = digitalocean.Droplet(token=DOKey,
