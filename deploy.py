@@ -84,7 +84,7 @@ PullPass = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.
 Hostname = HostPrefix + '-' + DORegion.upper() + '-' + str(random.randint(0000,9999))
 
 # Replace placeholders with their actual value
-UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{USER}', PullUser).replace('{PASS}', PullPass).replace('{DO_TOKEN}', DOKey).replace('{TIMEOUT}', str(DESTROY_TIMEOUT).replace('{VPNType}', str(VPNType))
+UserScript = UserScript.replace('{PORT}', str(PullPort)).replace('{USER}', PullUser).replace('{PASS}', PullPass).replace('{DO_TOKEN}', DOKey).replace('{TIMEOUT}', str(DESTROY_TIMEOUT)).replace('{VPNType}', VPNType)
 
 # Try to create VM
 droplet = digitalocean.Droplet(token=DOKey,
@@ -92,7 +92,7 @@ droplet = digitalocean.Droplet(token=DOKey,
 	region=DORegion,
 	ssh_keys=SSHKeys,
 	image='debian-9-x64',
-	size_slug='s-1vcpu-1gb',
+	size_slug='c-1vcpu-2gb',
 	backups=False,
 	ipv6=False,
 	monitoring=True,
