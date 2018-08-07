@@ -16,9 +16,18 @@ AUTH_USER=$2
 AUTH_PASS=$3
 REMOVE_TIMEOUT=$4
 DO_APIKEY=$5
+VPNType=$6
 SERVER_IP=$(curl -s http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address)
 ANCHOR_IP=$(curl -s http://169.254.169.254/metadata/v1/interfaces/public/0/anchor_ipv4/address)
 OVPN_DIR="/etc/openvpn"
+
+if [ "$VPNType" == "TCP" ]; then
+  VPNProto=tcp
+  VPNPort=443
+else
+  VPNProto=udp
+  VPNPort=53
+fi
 
 # Save our key to a file for later usage (to remove self)
 echo $DO_APIKEY > /root/.do_apikey
@@ -68,7 +77,7 @@ sysctl -p
 # Configure and save iptables in case of reboots
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A INPUT -p tcp --dport 22 -j ACCEPT
-iptables -A INPUT -p udp --dport 53 -j ACCEPT
+iptables -A INPUT -p $VPNProto --dport $VPNPort -j ACCEPT
 iptables -A INPUT -p icmp -j ACCEPT
 iptables -A INPUT -p tcp --dport $HTTPS_PORT -j ACCEPT
 iptables -P INPUT DROP
@@ -76,7 +85,7 @@ iptables -t nat -A POSTROUTING -s 192.168.254.0/27 -j SNAT --to-source $ANCHOR_I
 iptables-save > /etc/iptables/rules.v4
 
 # Write configuration files for client and server
->$OVPN_DIR/server-53.conf cat <<EOF
+>$OVPN_DIR/server-$VPNPort.conf cat <<EOF
 server      192.168.254.0 255.255.255.224
 verb        3
 duplicate-cn
@@ -110,10 +119,10 @@ push        "route 0.0.0.0 0.0.0.0"
 user        nobody
 group       nogroup
 
-proto       udp
-port        53
-dev         tun53
-status      openvpn-status-53.log
+proto       $VPNProto
+port        $VPNPort
+dev         tun${VPNPort}
+status      openvpn-status-$VPNPort.log
 EOF
 
 >$OVPN_DIR/client.ovpn cat <<EOF
@@ -121,7 +130,7 @@ client
 nobind
 dev tun
 redirect-gateway def1 bypass-dhcp
-remote $SERVER_IP 53 udp
+remote $SERVER_IP $VPNPort $VPNProto
 sndbuf 0
 rcvbuf 0
 

@@ -22,6 +22,9 @@ SSHKeys = []
 # Change this to edit the starting name of the Droplets hostname, ex: Do-AutoVPN3244
 HostPrefix = "VPN"
 
+# Change the VPN type. You can select UDP or TCP. TCP uses 443, UDP uses 53. Default is UDP
+VPNType="UDP"
+
 ###################
 # Start main code #
 ###################
@@ -33,7 +36,7 @@ exec 2>&1
 apt -y update && apt install -yq git curl
 git clone https://github.com/riptidewave93/DO-AutoVPN.git /tmp/DO-AutoVPN
 cd /tmp/DO-AutoVPN/server
-chmod +x ./* && ./setup.sh {PORT} {USER} {PASS} {TIMEOUT} {DO_TOKEN}
+chmod +x ./* && ./setup.sh {PORT} {USER} {PASS} {TIMEOUT} {DO_TOKEN} {VPNType}
 exit 0"""
 
 # Make sure we have an API key
