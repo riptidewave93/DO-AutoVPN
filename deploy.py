@@ -41,7 +41,7 @@ exit 0"""
 
 # Make sure we have an API key
 while DOKey is None:
-	DOKey = input("Please enter a Ditial Ocean API key that has read and write access: ")
+	DOKey = input("Please enter a DigitalOcean API key that has read and write access: ")
 	if len(DOKey) < 60:
 		print('Invalid entry, please try again.')
 		DOKey = None
